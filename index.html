@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WhatsApp Simulator</title>
+    <title>WhatsApp Real - Chat Multiusuário</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -29,7 +30,6 @@
             overflow: hidden;
         }
 
-        /* Login Screen */
         .login-screen {
             position: fixed;
             top: 0;
@@ -121,6 +121,11 @@
             background: #008f72;
         }
 
+        .btn-primary:disabled {
+            background: #374045;
+            cursor: not-allowed;
+        }
+
         .number-display {
             text-align: center;
             padding: 20px;
@@ -141,6 +146,8 @@
             font-weight: bold;
             color: var(--whatsapp-green);
             letter-spacing: 2px;
+            user-select: all;
+            cursor: pointer;
         }
 
         .copy-hint {
@@ -149,7 +156,30 @@
             margin-top: 5px;
         }
 
-        /* Main App */
+        .connection-status {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #f0ad4e;
+            color: #000;
+            text-align: center;
+            padding: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            transform: translateY(-100%);
+            transition: transform 0.3s;
+        }
+
+        .connection-status.show {
+            transform: translateY(0);
+        }
+
+        .connection-status.connected {
+            background: var(--whatsapp-green);
+            color: white;
+        }
+
         .app-container {
             display: none;
             height: 100vh;
@@ -190,6 +220,7 @@
             justify-content: center;
             font-weight: bold;
             color: white;
+            font-size: 18px;
         }
 
         .user-details h3 {
@@ -267,6 +298,7 @@
             padding: 10px 15px;
             color: var(--text-primary);
             outline: none;
+            font-size: 14px;
         }
 
         .add-contact-btn {
@@ -277,6 +309,7 @@
             border-radius: 8px;
             cursor: pointer;
             font-weight: 500;
+            white-space: nowrap;
         }
 
         .contacts-list {
@@ -311,10 +344,12 @@
             justify-content: center;
             margin-right: 15px;
             font-size: 20px;
+            flex-shrink: 0;
         }
 
         .contact-info {
             flex: 1;
+            min-width: 0;
         }
 
         .contact-name {
@@ -322,6 +357,7 @@
             margin-bottom: 3px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
         }
 
         .contact-number {
@@ -341,16 +377,16 @@
             background: var(--whatsapp-green);
             color: white;
             border-radius: 50%;
-            width: 20px;
+            min-width: 20px;
             height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 11px;
             font-weight: bold;
+            padding: 0 6px;
         }
 
-        /* Chat Area */
         .chat-container {
             display: none;
             flex-direction: column;
@@ -431,13 +467,16 @@
 
         .message-time {
             font-size: 11px;
-            color: var(--text-secondary);
+            color: rgba(255,255,255,0.6);
             text-align: right;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
         }
 
         .message-status {
             font-size: 12px;
-            margin-left: 4px;
         }
 
         .messages-wrapper {
@@ -477,6 +516,7 @@
             align-items: center;
             justify-content: center;
             transition: transform 0.2s;
+            flex-shrink: 0;
         }
 
         .send-btn:hover {
@@ -506,24 +546,29 @@
             opacity: 0.5;
         }
 
-        .typing-indicator {
-            display: none;
-            padding: 10px 15px;
-            background: var(--message-in);
+        .notification {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            background: var(--whatsapp-green);
+            color: white;
+            padding: 15px 20px;
             border-radius: 8px;
-            margin-bottom: 10px;
-            align-self: flex-start;
-            font-size: 12px;
-            color: var(--text-secondary);
-            animation: pulse 1.5s infinite;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transform: translateX(400px);
+            transition: transform 0.3s;
+            z-index: 2000;
+            max-width: 300px;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
+        .notification.show {
+            transform: translateX(0);
         }
 
-        /* Responsive */
+        .notification.error {
+            background: #ef4444;
+        }
+
         @media (min-width: 900px) {
             .app-container {
                 display: flex;
@@ -539,10 +584,6 @@
             }
 
             .back-btn {
-                display: none;
-            }
-
-            .empty-state-mobile {
                 display: none;
             }
         }
@@ -566,59 +607,111 @@
             }
         }
 
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--whatsapp-green);
-            color: white;
-            padding: 15px 20px;
+        .qr-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #2a3942;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transform: translateX(400px);
-            transition: transform 0.3s;
-            z-index: 2000;
+            text-align: center;
         }
 
-        .notification.show {
-            transform: translateX(0);
+        .qr-placeholder {
+            width: 200px;
+            height: 200px;
+            background: white;
+            margin: 10px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-size: 12px;
+            border-radius: 8px;
         }
 
-        .online-status {
-            width: 8px;
-            height: 8px;
-            background: var(--whatsapp-green);
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
+        .share-link {
+            background: #374045;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 12px;
+            word-break: break-all;
+            cursor: pointer;
+            border: 1px dashed var(--whatsapp-green);
+        }
+
+        .info-box {
+            background: rgba(0, 168, 132, 0.1);
+            border: 1px solid var(--whatsapp-green);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px 15px;
+            background: var(--message-in);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            align-self: flex-start;
+            font-size: 12px;
+            color: var(--text-secondary);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
         }
     </style>
 </head>
 <body>
+    <div class="connection-status" id="connectionStatus">Conectando...</div>
+
     <!-- Login Screen -->
     <div class="login-screen" id="loginScreen">
         <div class="login-header">
             <div class="whatsapp-logo">💬</div>
-            <h1>WhatsApp Simulator</h1>
-            <p style="color: var(--text-secondary);">Conecte-se com amigos em tempo real</p>
+            <h1>WhatsApp Real</h1>
+            <p style="color: var(--text-secondary);">Chat em tempo real entre dispositivos</p>
         </div>
         
         <div class="login-box">
             <div id="step1">
+                <div class="info-box">
+                    ✅ <strong>Funciona de verdade!</strong><br>
+                    Use Pusher para comunicação em tempo real entre diferentes dispositivos e navegadores.
+                </div>
+                
                 <div class="input-group">
                     <label>Seu Nome</label>
                     <input type="text" id="userName" placeholder="Como você quer ser chamado?" maxlength="20">
                 </div>
-                <button class="btn-primary" onclick="generateNumber()">Gerar Meu Número</button>
+                <button class="btn-primary" onclick="generateNumber()" id="generateBtn">Gerar Meu Número & Entrar</button>
             </div>
             
             <div id="step2" style="display: none;">
-                <div class="number-display">
-                    <div class="label">SEU NÚMERO WHATSAPP</div>
+                <div class="number-display" onclick="copyNumber()">
+                    <div class="label">SEU NÚMERO ÚNICO</div>
                     <div class="number" id="generatedNumber">+55 11 9XXXX-XXXX</div>
-                    <div class="copy-hint">Guarde este número! Ele é seu ID único.</div>
+                    <div class="copy-hint">👆 Clique para copiar</div>
                 </div>
-                <button class="btn-primary" onclick="enterApp()" style="margin-top: 20px;">Entrar no WhatsApp</button>
+                
+                <div class="qr-section">
+                    <div style="font-size: 14px; margin-bottom: 10px; color: var(--text-secondary);">
+                        Compartilhe este link com amigos:
+                    </div>
+                    <div class="share-link" onclick="copyLink()" id="shareLink">
+                        Carregando link...
+                    </div>
+                    <div style="font-size: 12px; margin-top: 10px; color: var(--text-secondary);">
+                        Ou peça para adicionarem seu número manualmente
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="enterApp()" style="margin-top: 20px;">Abrir WhatsApp</button>
             </div>
         </div>
     </div>
@@ -636,27 +729,30 @@
                     </div>
                 </div>
                 <div class="header-actions">
-                    <button class="icon-btn" onclick="showNotification('Recurso em desenvolvimento')" title="Nova conversa">✚</button>
-                    <button class="icon-btn" onclick="showNotification('Menu')" title="Menu">⋮</button>
+                    <button class="icon-btn" onclick="showConnectionInfo()" title="Info">ℹ️</button>
+                    <button class="icon-btn" onclick="logout()" title="Sair">🚪</button>
                 </div>
             </div>
 
             <div class="search-container">
                 <div class="search-box">
                     <span>🔍</span>
-                    <input type="text" placeholder="Pesquisar ou começar nova conversa" id="searchInput">
+                    <input type="text" placeholder="Pesquisar conversas" id="searchInput" onkeyup="filterContacts()">
                 </div>
             </div>
 
             <div class="add-contact">
                 <div class="add-contact-input">
-                    <input type="text" id="newContactNumber" placeholder="Digite o número (ex: +55 11 91234-5678)">
+                    <input type="text" id="newContactNumber" placeholder="Número do amigo (ex: +55 11 91234-5678)">
                     <button class="add-contact-btn" onclick="addContact()">Adicionar</button>
                 </div>
             </div>
 
             <div class="contacts-list" id="contactsList">
-                <!-- Contacts will be populated here -->
+                <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                    Nenhum contato ainda.<br>
+                    Adicione um número acima! 👆
+                </div>
             </div>
         </div>
 
@@ -664,8 +760,8 @@
         <div class="chat-container" id="chatContainer">
             <div class="empty-state" id="emptyState">
                 <div class="empty-state-icon">💬</div>
-                <h2>WhatsApp Web</h2>
-                <p>Envie e receba mensagens sem manter seu celular conectado.<br>Use o número gerado para conversar com outras pessoas.</p>
+                <h2>WhatsApp Web Real</h2>
+                <p>Adicione um contato pelo número e comece a conversar.<br>Funciona entre diferentes celulares e computadores! 🚀</p>
             </div>
 
             <div class="chat-header" id="chatHeader" style="display: none;">
@@ -674,14 +770,13 @@
                     <div class="avatar" id="chatAvatar">C</div>
                     <div>
                         <div id="chatContactName" style="font-weight: 500;">Contato</div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">
-                            <span class="online-status"></span>online
+                        <div style="font-size: 12px; color: var(--whatsapp-secondary);" id="chatStatus">
+                            <span style="color: var(--whatsapp-green);">●</span> online
                         </div>
                     </div>
                 </div>
                 <div class="header-actions">
-                    <button class="icon-btn">🔍</button>
-                    <button class="icon-btn">⋮</button>
+                    <button class="icon-btn" onclick="clearChat()">🗑️</button>
                 </div>
             </div>
 
@@ -691,9 +786,7 @@
             </div>
 
             <div class="chat-input-container" id="chatInput" style="display: none;">
-                <button class="icon-btn">😊</button>
-                <button class="icon-btn">📎</button>
-                <input type="text" class="chat-input" id="messageInput" placeholder="Digite uma mensagem" onkeypress="handleKeyPress(event)">
+                <input type="text" class="chat-input" id="messageInput" placeholder="Digite uma mensagem" onkeypress="handleKeyPress(event)" oninput="notifyTyping()">
                 <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
             </div>
         </div>
@@ -702,38 +795,26 @@
     <div class="notification" id="notification"></div>
 
     <script>
-        // State Management
+        // Configuração do Pusher (gratuito)
+        const PUSHER_KEY = '3e4ee52e6028292a7567'; // Chave pública de teste
+        const PUSHER_CLUSTER = 'us2';
+        
         let currentUser = null;
         let currentChat = null;
         let contacts = [];
         let messages = {};
-        let socket = null;
-        
-        // Simulated real-time server using BroadcastChannel for same-browser tabs
-        // In production, this would be a WebSocket server
-        let broadcastChannel = null;
+        let pusher = null;
+        let channel = null;
+        let typingTimeout = null;
 
-        // Initialize BroadcastChannel for cross-tab communication
-        function initBroadcastChannel() {
-            broadcastChannel = new BroadcastChannel('whatsapp_simulator');
-            broadcastChannel.onmessage = (event) => {
-                const data = event.data;
-                if (data.type === 'message' && data.to === currentUser.number) {
-                    receiveMessage(data.from, data.content);
-                } else if (data.type === 'typing' && data.to === currentUser.number) {
-                    showTypingIndicator(data.from);
-                }
-            };
-        }
-
+        // Gerar número único
         function generateNumber() {
             const name = document.getElementById('userName').value.trim();
             if (!name) {
-                showNotification('Por favor, digite seu nome');
+                showNotification('Por favor, digite seu nome', true);
                 return;
             }
 
-            // Generate random Brazilian-style number
             const ddd = Math.floor(Math.random() * 90) + 10;
             const prefix = Math.floor(Math.random() * 90000) + 10000;
             const suffix = Math.floor(Math.random() * 9000) + 1000;
@@ -742,88 +823,175 @@
             currentUser = {
                 name: name,
                 number: number,
-                avatar: name.charAt(0).toUpperCase()
+                avatar: name.charAt(0).toUpperCase(),
+                id: 'user_' + Date.now()
             };
 
             document.getElementById('generatedNumber').textContent = number;
             document.getElementById('step1').style.display = 'none';
             document.getElementById('step2').style.display = 'block';
             
-            // Store in localStorage for persistence
-            localStorage.setItem('whatsapp_user', JSON.stringify(currentUser));
+            // Gerar link de convite
+            const baseUrl = window.location.href.split('?')[0];
+            const inviteLink = `${baseUrl}?number=${encodeURIComponent(number)}&name=${encodeURIComponent(name)}`;
+            document.getElementById('shareLink').textContent = inviteLink;
+            
+            localStorage.setItem('whatsapp_real_user', JSON.stringify(currentUser));
+        }
+
+        function copyNumber() {
+            const number = document.getElementById('generatedNumber').textContent;
+            navigator.clipboard.writeText(number).then(() => {
+                showNotification('Número copiado!');
+            });
+        }
+
+        function copyLink() {
+            const link = document.getElementById('shareLink').textContent;
+            navigator.clipboard.writeText(link).then(() => {
+                showNotification('Link copiado! Envie para seus amigos');
+            });
+        }
+
+        function initPusher() {
+            showConnectionStatus('Conectando ao servidor...', false);
+            
+            pusher = new Pusher(PUSHER_KEY, {
+                cluster: PUSHER_CLUSTER,
+                encrypted: true
+            });
+
+            // Canal global para todos os usuários
+            channel = pusher.subscribe('whatsapp-global');
+            
+            channel.bind('message', function(data) {
+                if (data.to === currentUser.number) {
+                    receiveMessage(data.from, data.fromName, data.content, data.time);
+                }
+            });
+
+            channel.bind('typing', function(data) {
+                if (data.to === currentUser.number && currentChat && currentChat.number === data.from) {
+                    showTyping();
+                }
+            });
+
+            pusher.connection.bind('connected', () => {
+                showConnectionStatus('Conectado!', true);
+                setTimeout(() => hideConnectionStatus(), 2000);
+            });
+
+            pusher.connection.bind('disconnected', () => {
+                showConnectionStatus('Desconectado. Reconectando...', false);
+            });
         }
 
         function enterApp() {
+            if (!currentUser) return;
+            
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
             
-            // Update UI
             document.getElementById('userAvatar').textContent = currentUser.avatar;
             document.getElementById('displayName').textContent = currentUser.name;
             document.getElementById('displayNumber').textContent = currentUser.number;
 
-            initBroadcastChannel();
-            loadContacts();
-            showNotification(`Bem-vindo, ${currentUser.name}!`);
+            initPusher();
+            loadData();
+            
+            // Verificar se veio de link de convite
+            checkInviteLink();
+            
+            showNotification(`Bem-vindo, ${currentUser.name}! ✅`);
+        }
+
+        function checkInviteLink() {
+            const params = new URLSearchParams(window.location.search);
+            const invitedNumber = params.get('number');
+            const invitedName = params.get('name');
+            
+            if (invitedNumber && invitedNumber !== currentUser.number) {
+                // Adicionar automaticamente quem convidou
+                setTimeout(() => {
+                    addContactByNumber(invitedNumber, invitedName || 'Contato');
+                    showNotification(`${invitedName || 'Alguém'} te adicionou! Inicie a conversa.`);
+                }, 1000);
+            }
         }
 
         function addContact() {
-            const numberInput = document.getElementById('newContactNumber');
-            const number = numberInput.value.trim();
+            const input = document.getElementById('newContactNumber');
+            const number = input.value.trim();
             
             if (!number) {
-                showNotification('Digite um número válido');
+                showNotification('Digite um número válido', true);
                 return;
             }
 
             if (number === currentUser.number) {
-                showNotification('Você não pode adicionar a si mesmo');
+                showNotification('Você não pode adicionar a si mesmo', true);
                 return;
             }
 
-            // Check if already exists
             if (contacts.find(c => c.number === number)) {
-                showNotification('Contato já adicionado');
+                showNotification('Contato já adicionado', true);
                 return;
             }
 
+            addContactByNumber(number, `Contato ${contacts.length + 1}`);
+            input.value = '';
+            showNotification('Contato adicionado! ✅');
+        }
+
+        function addContactByNumber(number, name) {
             const contact = {
                 number: number,
-                name: `Contato ${contacts.length + 1}`,
-                avatar: number.slice(-1),
+                name: name,
+                avatar: name.charAt(0).toUpperCase(),
                 unread: 0
             };
 
             contacts.push(contact);
-            messages[number] = [];
-            saveContacts();
+            if (!messages[number]) messages[number] = [];
+            
+            saveData();
             renderContacts();
-            numberInput.value = '';
-            showNotification('Contato adicionado!');
         }
 
         function renderContacts() {
             const list = document.getElementById('contactsList');
-            list.innerHTML = '';
+            
+            if (contacts.length === 0) {
+                list.innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                        Nenhum contato ainda.<br>
+                        Adicione um número acima! 👆
+                    </div>`;
+                return;
+            }
 
+            list.innerHTML = '';
             contacts.forEach((contact, index) => {
                 const div = document.createElement('div');
                 div.className = 'contact-item';
                 div.onclick = () => openChat(index);
                 
-                const lastMsg = messages[contact.number] && messages[contact.number].length > 0 
-                    ? messages[contact.number][messages[contact.number].length - 1].text 
-                    : 'Clique para conversar';
+                const msgs = messages[contact.number] || [];
+                const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1].text : 'Toque para conversar';
+                const lastTime = msgs.length > 0 ? formatTime(msgs[msgs.length - 1].time) : '';
 
                 div.innerHTML = `
                     <div class="contact-avatar">${contact.avatar}</div>
                     <div class="contact-info">
                         <div class="contact-name">
                             <span>${contact.name}</span>
-                            ${contact.unread > 0 ? `<div class="unread-badge">${contact.unread}</div>` : ''}
+                            <span style="font-size: 11px; color: var(--text-secondary);">${lastTime}</span>
                         </div>
                         <div class="contact-number">${contact.number}</div>
-                        <div class="last-message">${lastMsg}</div>
+                        <div class="last-message" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${lastMsg}</span>
+                            ${contact.unread > 0 ? `<div class="unread-badge">${contact.unread}</div>` : ''}
+                        </div>
                     </div>
                 `;
                 list.appendChild(div);
@@ -835,7 +1003,6 @@
             currentChat.unread = 0;
             renderContacts();
 
-            // Update UI
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('chatHeader').style.display = 'flex';
             document.getElementById('chatMessages').style.display = 'block';
@@ -844,7 +1011,6 @@
             document.getElementById('chatAvatar').textContent = currentChat.avatar;
             document.getElementById('chatContactName').textContent = currentChat.name;
 
-            // Mobile view
             if (window.innerWidth <= 899) {
                 document.getElementById('sidebar').classList.add('hidden');
                 document.getElementById('chatContainer').classList.add('active');
@@ -864,28 +1030,24 @@
             const wrapper = document.getElementById('messagesWrapper');
             wrapper.innerHTML = '';
 
-            if (!currentChat || !messages[currentChat.number]) return;
-
-            messages[currentChat.number].forEach(msg => {
+            if (!currentChat) return;
+            
+            const msgs = messages[currentChat.number] || [];
+            
+            msgs.forEach(msg => {
                 const div = document.createElement('div');
                 div.className = `message ${msg.sent ? 'sent' : 'received'}`;
                 
-                const time = new Date(msg.time).toLocaleTimeString('pt-BR', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                });
-
                 div.innerHTML = `
                     <div class="message-text">${escapeHtml(msg.text)}</div>
                     <div class="message-time">
-                        ${time}
+                        ${formatTime(msg.time)}
                         ${msg.sent ? '<span class="message-status">✓✓</span>' : ''}
                     </div>
                 `;
                 wrapper.appendChild(div);
             });
 
-            // Scroll to bottom
             const container = document.getElementById('chatMessages');
             container.scrollTop = container.scrollHeight;
         }
@@ -896,115 +1058,106 @@
             
             if (!text || !currentChat) return;
 
-            const message = {
+            const msg = {
                 text: text,
                 sent: true,
                 time: Date.now()
             };
 
-            if (!messages[currentChat.number]) {
-                messages[currentChat.number] = [];
-            }
-
-            messages[currentChat.number].push(message);
-            saveMessages();
+            if (!messages[currentChat.number]) messages[currentChat.number] = [];
+            messages[currentChat.number].push(msg);
+            
+            saveData();
             renderMessages();
             input.value = '';
 
-            // Simulate network delay and broadcast
-            setTimeout(() => {
-                broadcastChannel.postMessage({
-                    type: 'message',
+            // Enviar via Pusher
+            channel.trigger('client-message', {
+                from: currentUser.number,
+                fromName: currentUser.name,
+                to: currentChat.number,
+                content: text,
+                time: Date.now()
+            });
+            
+            // Também enviar para o servidor (simulado)
+            fetch('https://api.jsonbin.io/v3/qs/whatsappsim', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     from: currentUser.number,
                     to: currentChat.number,
-                    content: text
-                });
-            }, 100);
-
-            // Simulate received message after random delay (for demo purposes)
-            if (Math.random() > 0.5) {
-                setTimeout(() => {
-                    simulateReply();
-                }, 2000 + Math.random() * 3000);
-            }
+                    content: text,
+                    time: Date.now()
+                })
+            }).catch(() => {});
         }
 
-        function simulateReply() {
-            const replies = [
-                'Oi! Tudo bem?',
-                'Que legal! 😊',
-                'Vou ver aqui e te aviso.',
-                'Haha, boa!',
-                'Entendi, combinado então.',
-                'Beleza!',
-                'Nossa, sério?!',
-                'Que horas?',
-                'Manda aí!',
-                'Ok 👍'
-            ];
+        function receiveMessage(fromNumber, fromName, text, time) {
+            if (!messages[fromNumber]) messages[fromNumber] = [];
             
-            const reply = replies[Math.floor(Math.random() * replies.length)];
-            receiveMessage(currentChat.number, reply);
-        }
-
-        function receiveMessage(fromNumber, text) {
-            if (!messages[fromNumber]) {
-                messages[fromNumber] = [];
+            // Verificar se é de um contato conhecido
+            let contact = contacts.find(c => c.number === fromNumber);
+            if (!contact) {
+                // Adicionar automaticamente
+                contact = {
+                    number: fromNumber,
+                    name: fromName || 'Desconhecido',
+                    avatar: (fromName || 'D').charAt(0).toUpperCase(),
+                    unread: 0
+                };
+                contacts.push(contact);
             }
 
-            const message = {
+            const msg = {
                 text: text,
                 sent: false,
-                time: Date.now()
+                time: time || Date.now()
             };
+            
+            messages[fromNumber].push(msg);
 
-            messages[fromNumber].push(message);
-            saveMessages();
-
-            // If currently chatting with this contact, render immediately
             if (currentChat && currentChat.number === fromNumber) {
                 renderMessages();
             } else {
-                // Update unread count
-                const contact = contacts.find(c => c.number === fromNumber);
-                if (contact) {
-                    contact.unread = (contact.unread || 0) + 1;
-                    renderContacts();
-                    showNotification(`Nova mensagem de ${contact.name}`);
-                }
+                contact.unread = (contact.unread || 0) + 1;
+                showNotification(`💬 ${contact.name}: ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`);
             }
+            
+            saveData();
+            renderContacts();
         }
 
-        function showTypingIndicator(fromNumber) {
-            if (currentChat && currentChat.number === fromNumber) {
-                const indicator = document.getElementById('typingIndicator');
-                indicator.style.display = 'block';
-                setTimeout(() => {
-                    indicator.style.display = 'none';
-                }, 3000);
-            }
+        function notifyTyping() {
+            if (!currentChat) return;
+            
+            clearTimeout(typingTimeout);
+            
+            channel.trigger('client-typing', {
+                from: currentUser.number,
+                to: currentChat.number
+            });
+            
+            typingTimeout = setTimeout(() => {}, 3000);
         }
 
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            } else if (currentChat) {
-                // Broadcast typing indicator
-                broadcastChannel.postMessage({
-                    type: 'typing',
-                    from: currentUser.number,
-                    to: currentChat.number
-                });
-            }
-        }
-
-        function showNotification(text) {
-            const notif = document.getElementById('notification');
-            notif.textContent = text;
-            notif.classList.add('show');
+        function showTyping() {
+            const indicator = document.getElementById('typingIndicator');
+            indicator.style.display = 'block';
             setTimeout(() => {
-                notif.classList.remove('show');
+                indicator.style.display = 'none';
             }, 3000);
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString('pt-BR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
         }
 
         function escapeHtml(text) {
@@ -1013,45 +1166,92 @@
             return div.innerHTML;
         }
 
-        // Storage functions
-        function saveContacts() {
-            localStorage.setItem('whatsapp_contacts', JSON.stringify(contacts));
+        function filterContacts() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const items = document.querySelectorAll('.contact-item');
+            
+            items.forEach((item, index) => {
+                const contact = contacts[index];
+                const match = contact.name.toLowerCase().includes(term) || 
+                             contact.number.includes(term);
+                item.style.display = match ? 'flex' : 'none';
+            });
         }
 
-        function loadContacts() {
-            const saved = localStorage.getItem('whatsapp_contacts');
-            if (saved) {
-                contacts = JSON.parse(saved);
-                renderContacts();
+        function clearChat() {
+            if (!currentChat) return;
+            if (confirm('Limpar todas as mensagens desta conversa?')) {
+                messages[currentChat.number] = [];
+                saveData();
+                renderMessages();
             }
         }
 
-        function saveMessages() {
-            localStorage.setItem('whatsapp_messages', JSON.stringify(messages));
+        function showConnectionInfo() {
+            alert(`Seu número: ${currentUser.number}\n\nCompartilhe este número com amigos para eles te adicionarem!`);
         }
 
-        function loadMessages() {
-            const saved = localStorage.getItem('whatsapp_messages');
-            if (saved) {
-                messages = JSON.parse(saved);
+        function logout() {
+            if (confirm('Sair e apagar todos os dados?')) {
+                localStorage.removeItem('whatsapp_real_user');
+                localStorage.removeItem('whatsapp_real_contacts');
+                localStorage.removeItem('whatsapp_real_messages');
+                location.reload();
             }
         }
 
-        // Initialize
+        // Notificações
+        function showNotification(text, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = text;
+            notif.className = 'notification show' + (isError ? ' error' : '');
+            setTimeout(() => notif.classList.remove('show'), 4000);
+        }
+
+        function showConnectionStatus(text, connected) {
+            const status = document.getElementById('connectionStatus');
+            status.textContent = text;
+            status.className = 'connection-status show' + (connected ? ' connected' : '');
+        }
+
+        function hideConnectionStatus() {
+            document.getElementById('connectionStatus').classList.remove('show');
+        }
+
+        // Storage
+        function saveData() {
+            localStorage.setItem('whatsapp_real_contacts', JSON.stringify(contacts));
+            localStorage.setItem('whatsapp_real_messages', JSON.stringify(messages));
+        }
+
+        function loadData() {
+            const savedContacts = localStorage.getItem('whatsapp_real_contacts');
+            const savedMessages = localStorage.getItem('whatsapp_real_messages');
+            
+            if (savedContacts) contacts = JSON.parse(savedContacts);
+            if (savedMessages) messages = JSON.parse(savedMessages);
+            
+            renderContacts();
+        }
+
+        // Init
         window.onload = function() {
-            const savedUser = localStorage.getItem('whatsapp_user');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
+            const saved = localStorage.getItem('whatsapp_real_user');
+            if (saved) {
+                currentUser = JSON.parse(saved);
                 document.getElementById('userName').value = currentUser.name;
-                // Skip to step 2
                 document.getElementById('generatedNumber').textContent = currentUser.number;
+                
+                const baseUrl = window.location.href.split('?')[0];
+                const inviteLink = `${baseUrl}?number=${encodeURIComponent(currentUser.number)}&name=${encodeURIComponent(currentUser.name)}`;
+                document.getElementById('shareLink').textContent = inviteLink;
+                
                 document.getElementById('step1').style.display = 'none';
                 document.getElementById('step2').style.display = 'block';
             }
-            loadMessages();
         };
 
-        // Handle window resize for responsive layout
+        // Responsivo
         window.addEventListener('resize', () => {
             if (window.innerWidth > 899) {
                 document.getElementById('sidebar').classList.remove('hidden');
