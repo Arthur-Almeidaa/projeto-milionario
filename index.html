@@ -2,1262 +2,414 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WhatsApp Real - Chat Multiusuário</title>
-    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --whatsapp-green: #00a884;
-            --whatsapp-dark: #111b21;
-            --whatsapp-chat-bg: #0b141a;
-            --message-out: #005c4b;
-            --message-in: #202c33;
-            --text-primary: #e9edef;
-            --text-secondary: #8696a0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: var(--whatsapp-dark);
-            color: var(--text-primary);
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .login-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--whatsapp-dark);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .whatsapp-logo {
-            width: 80px;
-            height: 80px;
-            background: var(--whatsapp-green);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 40px;
-        }
-
-        .login-header h1 {
-            font-size: 28px;
-            font-weight: 300;
-            margin-bottom: 10px;
-        }
-
-        .login-box {
-            background: #202c33;
-            padding: 30px;
-            border-radius: 10px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-        }
-
-        .input-group label {
-            display: block;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px 15px;
-            background: #2a3942;
-            border: 1px solid #374045;
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-
-        .input-group input:focus {
-            border-color: var(--whatsapp-green);
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: var(--whatsapp-green);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .btn-primary:hover {
-            background: #008f72;
-        }
-
-        .btn-primary:disabled {
-            background: #374045;
-            cursor: not-allowed;
-        }
-
-        .number-display {
-            text-align: center;
-            padding: 20px;
-            background: #2a3942;
-            border-radius: 8px;
-            margin-top: 15px;
-            border: 2px dashed var(--whatsapp-green);
-        }
-
-        .number-display .label {
-            color: var(--text-secondary);
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-
-        .number-display .number {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--whatsapp-green);
-            letter-spacing: 2px;
-            user-select: all;
-            cursor: pointer;
-        }
-
-        .copy-hint {
-            color: var(--text-secondary);
-            font-size: 12px;
-            margin-top: 5px;
-        }
-
-        .connection-status {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: #f0ad4e;
-            color: #000;
-            text-align: center;
-            padding: 8px;
-            font-size: 14px;
-            z-index: 2000;
-            transform: translateY(-100%);
-            transition: transform 0.3s;
-        }
-
-        .connection-status.show {
-            transform: translateY(0);
-        }
-
-        .connection-status.connected {
-            background: var(--whatsapp-green);
-            color: white;
-        }
-
-        .app-container {
-            display: none;
-            height: 100vh;
-            width: 100%;
-        }
-
-        .sidebar {
-            width: 100%;
-            height: 100%;
-            background: #111b21;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid #222e35;
-        }
-
-        .sidebar-header {
-            background: #202c33;
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #222e35;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--whatsapp-green);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-            font-size: 18px;
-        }
-
-        .user-details h3 {
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        .user-details p {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 20px;
-        }
-
-        .icon-btn {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 20px;
-            cursor: pointer;
-            padding: 5px;
-            transition: color 0.3s;
-        }
-
-        .icon-btn:hover {
-            color: var(--text-primary);
-        }
-
-        .search-container {
-            padding: 10px 15px;
-            background: #111b21;
-        }
-
-        .search-box {
-            background: #202c33;
-            border-radius: 8px;
-            padding: 10px 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .search-box input {
-            background: none;
-            border: none;
-            color: var(--text-primary);
-            outline: none;
-            width: 100%;
-            font-size: 14px;
-        }
-
-        .search-box input::placeholder {
-            color: var(--text-secondary);
-        }
-
-        .add-contact {
-            padding: 10px 15px;
-            background: #111b21;
-            border-bottom: 1px solid #222e35;
-        }
-
-        .add-contact-input {
-            display: flex;
-            gap: 10px;
-        }
-
-        .add-contact-input input {
-            flex: 1;
-            background: #202c33;
-            border: 1px solid #374045;
-            border-radius: 8px;
-            padding: 10px 15px;
-            color: var(--text-primary);
-            outline: none;
-            font-size: 14px;
-        }
-
-        .add-contact-btn {
-            background: var(--whatsapp-green);
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-
-        .contacts-list {
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .contact-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            cursor: pointer;
-            transition: background 0.2s;
-            border-bottom: 1px solid #222e35;
-        }
-
-        .contact-item:hover {
-            background: #202c33;
-        }
-
-        .contact-item.active {
-            background: #2a3942;
-        }
-
-        .contact-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: #374045;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-
-        .contact-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .contact-name {
-            font-weight: 500;
-            margin-bottom: 3px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .contact-number {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        .last-message {
-            font-size: 13px;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .unread-badge {
-            background: var(--whatsapp-green);
-            color: white;
-            border-radius: 50%;
-            min-width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 0 6px;
-        }
-
-        .chat-container {
-            display: none;
-            flex-direction: column;
-            height: 100%;
-            background: var(--whatsapp-chat-bg);
-        }
-
-        .chat-header {
-            background: #202c33;
-            padding: 10px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #222e35;
-        }
-
-        .chat-header-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .back-btn {
-            background: none;
-            border: none;
-            color: var(--text-primary);
-            font-size: 24px;
-            cursor: pointer;
-            display: none;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23111b21' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
-        }
-
-        .message {
-            max-width: 70%;
-            margin-bottom: 10px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            position: relative;
-            word-wrap: break-word;
-            animation: messageSlide 0.3s ease-out;
-        }
-
-        @keyframes messageSlide {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.sent {
-            background: var(--message-out);
-            align-self: flex-end;
-            margin-left: auto;
-            border-bottom-right-radius: 2px;
-        }
-
-        .message.received {
-            background: var(--message-in);
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-        }
-
-        .message-text {
-            font-size: 14px;
-            line-height: 1.4;
-            margin-bottom: 4px;
-        }
-
-        .message-time {
-            font-size: 11px;
-            color: rgba(255,255,255,0.6);
-            text-align: right;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 4px;
-        }
-
-        .message-status {
-            font-size: 12px;
-        }
-
-        .messages-wrapper {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-input-container {
-            background: #202c33;
-            padding: 10px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .chat-input {
-            flex: 1;
-            background: #2a3942;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 15px;
-            color: var(--text-primary);
-            font-size: 15px;
-            outline: none;
-        }
-
-        .send-btn {
-            background: var(--whatsapp-green);
-            border: none;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s;
-            flex-shrink: 0;
-        }
-
-        .send-btn:hover {
-            transform: scale(1.1);
-        }
-
-        .send-btn:disabled {
-            background: #374045;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: var(--text-secondary);
-            text-align: center;
-            padding: 40px;
-        }
-
-        .empty-state-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-
-        .notification {
-            position: fixed;
-            top: 50px;
-            right: 20px;
-            background: var(--whatsapp-green);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transform: translateX(400px);
-            transition: transform 0.3s;
-            z-index: 2000;
-            max-width: 300px;
-        }
-
-        .notification.show {
-            transform: translateX(0);
-        }
-
-        .notification.error {
-            background: #ef4444;
-        }
-
-        @media (min-width: 900px) {
-            .app-container {
-                display: flex;
-            }
-
-            .sidebar {
-                width: 350px;
-            }
-
-            .chat-container {
-                flex: 1;
-                display: flex;
-            }
-
-            .back-btn {
-                display: none;
-            }
-        }
-
-        @media (max-width: 899px) {
-            .chat-container.active {
-                display: flex;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                z-index: 100;
-            }
-
-            .back-btn {
-                display: block;
-            }
-
-            .sidebar.hidden {
-                display: none;
-            }
-        }
-
-        .qr-section {
-            margin-top: 20px;
-            padding: 20px;
-            background: #2a3942;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .qr-placeholder {
-            width: 200px;
-            height: 200px;
-            background: white;
-            margin: 10px auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #333;
-            font-size: 12px;
-            border-radius: 8px;
-        }
-
-        .share-link {
-            background: #374045;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 10px;
-            font-size: 12px;
-            word-break: break-all;
-            cursor: pointer;
-            border: 1px dashed var(--whatsapp-green);
-        }
-
-        .info-box {
-            background: rgba(0, 168, 132, 0.1);
-            border: 1px solid var(--whatsapp-green);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .typing-indicator {
-            display: none;
-            padding: 10px 15px;
-            background: var(--message-in);
-            border-radius: 8px;
-            margin-bottom: 10px;
-            align-self: flex-start;
-            font-size: 12px;
-            color: var(--text-secondary);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Manos</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
-    <div class="connection-status" id="connectionStatus">Conectando...</div>
+    <div id="root"></div>
 
-    <!-- Login Screen -->
-    <div class="login-screen" id="loginScreen">
-        <div class="login-header">
-            <div class="whatsapp-logo">💬</div>
-            <h1>WhatsApp Real</h1>
-            <p style="color: var(--text-secondary);">Chat em tempo real entre dispositivos</p>
-        </div>
-        
-        <div class="login-box">
-            <div id="step1">
-                <div class="info-box">
-                    ✅ <strong>Funciona de verdade!</strong><br>
-                    Use Pusher para comunicação em tempo real entre diferentes dispositivos e navegadores.
-                </div>
-                
-                <div class="input-group">
-                    <label>Seu Nome</label>
-                    <input type="text" id="userName" placeholder="Como você quer ser chamado?" maxlength="20">
-                </div>
-                <button class="btn-primary" onclick="generateNumber()" id="generateBtn">Gerar Meu Número & Entrar</button>
-            </div>
-            
-            <div id="step2" style="display: none;">
-                <div class="number-display" onclick="copyNumber()">
-                    <div class="label">SEU NÚMERO ÚNICO</div>
-                    <div class="number" id="generatedNumber">+55 11 9XXXX-XXXX</div>
-                    <div class="copy-hint">👆 Clique para copiar</div>
-                </div>
-                
-                <div class="qr-section">
-                    <div style="font-size: 14px; margin-bottom: 10px; color: var(--text-secondary);">
-                        Compartilhe este link com amigos:
-                    </div>
-                    <div class="share-link" onclick="copyLink()" id="shareLink">
-                        Carregando link...
-                    </div>
-                    <div style="font-size: 12px; margin-top: 10px; color: var(--text-secondary);">
-                        Ou peça para adicionarem seu número manualmente
-                    </div>
-                </div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-                <button class="btn-primary" onclick="enterApp()" style="margin-top: 20px;">Abrir WhatsApp</button>
-            </div>
-        </div>
-    </div>
+        // Ícones SVG
+        const MessageCircle = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+            </svg>
+        );
 
-    <!-- Main App -->
-    <div class="app-container" id="appContainer">
-        <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="user-info">
-                    <div class="avatar" id="userAvatar">U</div>
-                    <div class="user-details">
-                        <h3 id="displayName">Usuário</h3>
-                        <p id="displayNumber">+55...</p>
-                    </div>
-                </div>
-                <div class="header-actions">
-                    <button class="icon-btn" onclick="showConnectionInfo()" title="Info">ℹ️</button>
-                    <button class="icon-btn" onclick="logout()" title="Sair">🚪</button>
-                </div>
-            </div>
+        const Send = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        );
 
-            <div class="search-container">
-                <div class="search-box">
-                    <span>🔍</span>
-                    <input type="text" placeholder="Pesquisar conversas" id="searchInput" onkeyup="filterContacts()">
-                </div>
-            </div>
+        const Copy = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        );
 
-            <div class="add-contact">
-                <div class="add-contact-input">
-                    <input type="text" id="newContactNumber" placeholder="Número do amigo (ex: +55 11 91234-5678)">
-                    <button class="add-contact-btn" onclick="addContact()">Adicionar</button>
-                </div>
-            </div>
+        const Check = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        );
 
-            <div class="contacts-list" id="contactsList">
-                <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                    Nenhum contato ainda.<br>
-                    Adicione um número acima! 👆
-                </div>
-            </div>
-        </div>
+        const Users = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        );
 
-        <!-- Chat Area -->
-        <div class="chat-container" id="chatContainer">
-            <div class="empty-state" id="emptyState">
-                <div class="empty-state-icon">💬</div>
-                <h2>WhatsApp Web Real</h2>
-                <p>Adicione um contato pelo número e comece a conversar.<br>Funciona entre diferentes celulares e computadores! 🚀</p>
-            </div>
+        const LogOut = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+        );
 
-            <div class="chat-header" id="chatHeader" style="display: none;">
-                <div class="chat-header-info">
-                    <button class="back-btn" onclick="closeChat()">←</button>
-                    <div class="avatar" id="chatAvatar">C</div>
-                    <div>
-                        <div id="chatContactName" style="font-weight: 500;">Contato</div>
-                        <div style="font-size: 12px; color: var(--whatsapp-secondary);" id="chatStatus">
-                            <span style="color: var(--whatsapp-green);">●</span> online
-                        </div>
-                    </div>
-                </div>
-                <div class="header-actions">
-                    <button class="icon-btn" onclick="clearChat()">🗑️</button>
-                </div>
-            </div>
+        function ChatApp() {
+            const [screen, setScreen] = useState('home');
+            const [username, setUsername] = useState('');
+            const [roomCode, setRoomCode] = useState('');
+            const [inputRoomCode, setInputRoomCode] = useState('');
+            const [message, setMessage] = useState('');
+            const [messages, setMessages] = useState([]);
+            const [copied, setCopied] = useState(false);
+            const [error, setError] = useState('');
+            const messagesEndRef = useRef(null);
 
-            <div class="chat-messages" id="chatMessages" style="display: none;">
-                <div class="messages-wrapper" id="messagesWrapper"></div>
-                <div class="typing-indicator" id="typingIndicator">digitando...</div>
-            </div>
+            const db = useRef({
+                rooms: JSON.parse(localStorage.getItem('chatRooms') || '{}')
+            });
 
-            <div class="chat-input-container" id="chatInput" style="display: none;">
-                <input type="text" class="chat-input" id="messageInput" placeholder="Digite uma mensagem" onkeypress="handleKeyPress(event)" oninput="notifyTyping()">
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="notification" id="notification"></div>
-
-    <script>
-        // Configuração do Pusher (gratuito)
-        const PUSHER_KEY = '3e4ee52e6028292a7567'; // Chave pública de teste
-        const PUSHER_CLUSTER = 'us2';
-        
-        let currentUser = null;
-        let currentChat = null;
-        let contacts = [];
-        let messages = {};
-        let pusher = null;
-        let channel = null;
-        let typingTimeout = null;
-
-        // Gerar número único
-        function generateNumber() {
-            const name = document.getElementById('userName').value.trim();
-            if (!name) {
-                showNotification('Por favor, digite seu nome', true);
-                return;
-            }
-
-            const ddd = Math.floor(Math.random() * 90) + 10;
-            const prefix = Math.floor(Math.random() * 90000) + 10000;
-            const suffix = Math.floor(Math.random() * 9000) + 1000;
-            const number = `+55 ${ddd} 9${prefix}-${suffix}`;
-
-            currentUser = {
-                name: name,
-                number: number,
-                avatar: name.charAt(0).toUpperCase(),
-                id: 'user_' + Date.now()
+            const saveToLocalStorage = () => {
+                localStorage.setItem('chatRooms', JSON.stringify(db.current.rooms));
             };
 
-            document.getElementById('generatedNumber').textContent = number;
-            document.getElementById('step1').style.display = 'none';
-            document.getElementById('step2').style.display = 'block';
-            
-            // Gerar link de convite
-            const baseUrl = window.location.href.split('?')[0];
-            const inviteLink = `${baseUrl}?number=${encodeURIComponent(number)}&name=${encodeURIComponent(name)}`;
-            document.getElementById('shareLink').textContent = inviteLink;
-            
-            localStorage.setItem('whatsapp_real_user', JSON.stringify(currentUser));
-        }
+            const generateRoomCode = () => {
+                return Math.random().toString(36).substring(2, 8).toUpperCase();
+            };
 
-        function copyNumber() {
-            const number = document.getElementById('generatedNumber').textContent;
-            navigator.clipboard.writeText(number).then(() => {
-                showNotification('Número copiado!');
-            });
-        }
-
-        function copyLink() {
-            const link = document.getElementById('shareLink').textContent;
-            navigator.clipboard.writeText(link).then(() => {
-                showNotification('Link copiado! Envie para seus amigos');
-            });
-        }
-
-        function initPusher() {
-            showConnectionStatus('Conectando ao servidor...', false);
-            
-            pusher = new Pusher(PUSHER_KEY, {
-                cluster: PUSHER_CLUSTER,
-                encrypted: true
-            });
-
-            // Canal global para todos os usuários
-            channel = pusher.subscribe('whatsapp-global');
-            
-            channel.bind('message', function(data) {
-                if (data.to === currentUser.number) {
-                    receiveMessage(data.from, data.fromName, data.content, data.time);
+            const createRoom = () => {
+                if (!username.trim()) {
+                    setError('Digite seu nome!');
+                    return;
                 }
-            });
-
-            channel.bind('typing', function(data) {
-                if (data.to === currentUser.number && currentChat && currentChat.number === data.from) {
-                    showTyping();
-                }
-            });
-
-            pusher.connection.bind('connected', () => {
-                showConnectionStatus('Conectado!', true);
-                setTimeout(() => hideConnectionStatus(), 2000);
-            });
-
-            pusher.connection.bind('disconnected', () => {
-                showConnectionStatus('Desconectado. Reconectando...', false);
-            });
-        }
-
-        function enterApp() {
-            if (!currentUser) return;
-            
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
-            
-            document.getElementById('userAvatar').textContent = currentUser.avatar;
-            document.getElementById('displayName').textContent = currentUser.name;
-            document.getElementById('displayNumber').textContent = currentUser.number;
-
-            initPusher();
-            loadData();
-            
-            // Verificar se veio de link de convite
-            checkInviteLink();
-            
-            showNotification(`Bem-vindo, ${currentUser.name}! ✅`);
-        }
-
-        function checkInviteLink() {
-            const params = new URLSearchParams(window.location.search);
-            const invitedNumber = params.get('number');
-            const invitedName = params.get('name');
-            
-            if (invitedNumber && invitedNumber !== currentUser.number) {
-                // Adicionar automaticamente quem convidou
-                setTimeout(() => {
-                    addContactByNumber(invitedNumber, invitedName || 'Contato');
-                    showNotification(`${invitedName || 'Alguém'} te adicionou! Inicie a conversa.`);
-                }, 1000);
-            }
-        }
-
-        function addContact() {
-            const input = document.getElementById('newContactNumber');
-            const number = input.value.trim();
-            
-            if (!number) {
-                showNotification('Digite um número válido', true);
-                return;
-            }
-
-            if (number === currentUser.number) {
-                showNotification('Você não pode adicionar a si mesmo', true);
-                return;
-            }
-
-            if (contacts.find(c => c.number === number)) {
-                showNotification('Contato já adicionado', true);
-                return;
-            }
-
-            addContactByNumber(number, `Contato ${contacts.length + 1}`);
-            input.value = '';
-            showNotification('Contato adicionado! ✅');
-        }
-
-        function addContactByNumber(number, name) {
-            const contact = {
-                number: number,
-                name: name,
-                avatar: name.charAt(0).toUpperCase(),
-                unread: 0
-            };
-
-            contacts.push(contact);
-            if (!messages[number]) messages[number] = [];
-            
-            saveData();
-            renderContacts();
-        }
-
-        function renderContacts() {
-            const list = document.getElementById('contactsList');
-            
-            if (contacts.length === 0) {
-                list.innerHTML = `
-                    <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                        Nenhum contato ainda.<br>
-                        Adicione um número acima! 👆
-                    </div>`;
-                return;
-            }
-
-            list.innerHTML = '';
-            contacts.forEach((contact, index) => {
-                const div = document.createElement('div');
-                div.className = 'contact-item';
-                div.onclick = () => openChat(index);
-                
-                const msgs = messages[contact.number] || [];
-                const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1].text : 'Toque para conversar';
-                const lastTime = msgs.length > 0 ? formatTime(msgs[msgs.length - 1].time) : '';
-
-                div.innerHTML = `
-                    <div class="contact-avatar">${contact.avatar}</div>
-                    <div class="contact-info">
-                        <div class="contact-name">
-                            <span>${contact.name}</span>
-                            <span style="font-size: 11px; color: var(--text-secondary);">${lastTime}</span>
-                        </div>
-                        <div class="contact-number">${contact.number}</div>
-                        <div class="last-message" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${lastMsg}</span>
-                            ${contact.unread > 0 ? `<div class="unread-badge">${contact.unread}</div>` : ''}
-                        </div>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-        }
-
-        function openChat(index) {
-            currentChat = contacts[index];
-            currentChat.unread = 0;
-            renderContacts();
-
-            document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('chatHeader').style.display = 'flex';
-            document.getElementById('chatMessages').style.display = 'block';
-            document.getElementById('chatInput').style.display = 'flex';
-            
-            document.getElementById('chatAvatar').textContent = currentChat.avatar;
-            document.getElementById('chatContactName').textContent = currentChat.name;
-
-            if (window.innerWidth <= 899) {
-                document.getElementById('sidebar').classList.add('hidden');
-                document.getElementById('chatContainer').classList.add('active');
-            }
-
-            renderMessages();
-            document.getElementById('messageInput').focus();
-        }
-
-        function closeChat() {
-            document.getElementById('sidebar').classList.remove('hidden');
-            document.getElementById('chatContainer').classList.remove('active');
-            currentChat = null;
-        }
-
-        function renderMessages() {
-            const wrapper = document.getElementById('messagesWrapper');
-            wrapper.innerHTML = '';
-
-            if (!currentChat) return;
-            
-            const msgs = messages[currentChat.number] || [];
-            
-            msgs.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = `message ${msg.sent ? 'sent' : 'received'}`;
-                
-                div.innerHTML = `
-                    <div class="message-text">${escapeHtml(msg.text)}</div>
-                    <div class="message-time">
-                        ${formatTime(msg.time)}
-                        ${msg.sent ? '<span class="message-status">✓✓</span>' : ''}
-                    </div>
-                `;
-                wrapper.appendChild(div);
-            });
-
-            const container = document.getElementById('chatMessages');
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            
-            if (!text || !currentChat) return;
-
-            const msg = {
-                text: text,
-                sent: true,
-                time: Date.now()
-            };
-
-            if (!messages[currentChat.number]) messages[currentChat.number] = [];
-            messages[currentChat.number].push(msg);
-            
-            saveData();
-            renderMessages();
-            input.value = '';
-
-            // Enviar via Pusher
-            channel.trigger('client-message', {
-                from: currentUser.number,
-                fromName: currentUser.name,
-                to: currentChat.number,
-                content: text,
-                time: Date.now()
-            });
-            
-            // Também enviar para o servidor (simulado)
-            fetch('https://api.jsonbin.io/v3/qs/whatsappsim', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    from: currentUser.number,
-                    to: currentChat.number,
-                    content: text,
-                    time: Date.now()
-                })
-            }).catch(() => {});
-        }
-
-        function receiveMessage(fromNumber, fromName, text, time) {
-            if (!messages[fromNumber]) messages[fromNumber] = [];
-            
-            // Verificar se é de um contato conhecido
-            let contact = contacts.find(c => c.number === fromNumber);
-            if (!contact) {
-                // Adicionar automaticamente
-                contact = {
-                    number: fromNumber,
-                    name: fromName || 'Desconhecido',
-                    avatar: (fromName || 'D').charAt(0).toUpperCase(),
-                    unread: 0
+                const code = generateRoomCode();
+                db.current.rooms[code] = {
+                    messages: [],
+                    users: [username]
                 };
-                contacts.push(contact);
-            }
-
-            const msg = {
-                text: text,
-                sent: false,
-                time: time || Date.now()
+                saveToLocalStorage();
+                setRoomCode(code);
+                setScreen('chat');
+                setError('');
             };
-            
-            messages[fromNumber].push(msg);
 
-            if (currentChat && currentChat.number === fromNumber) {
-                renderMessages();
-            } else {
-                contact.unread = (contact.unread || 0) + 1;
-                showNotification(`💬 ${contact.name}: ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`);
-            }
-            
-            saveData();
-            renderContacts();
-        }
-
-        function notifyTyping() {
-            if (!currentChat) return;
-            
-            clearTimeout(typingTimeout);
-            
-            channel.trigger('client-typing', {
-                from: currentUser.number,
-                to: currentChat.number
-            });
-            
-            typingTimeout = setTimeout(() => {}, 3000);
-        }
-
-        function showTyping() {
-            const indicator = document.getElementById('typingIndicator');
-            indicator.style.display = 'block';
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 3000);
-        }
-
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') sendMessage();
-        }
-
-        function formatTime(timestamp) {
-            return new Date(timestamp).toLocaleTimeString('pt-BR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            });
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function filterContacts() {
-            const term = document.getElementById('searchInput').value.toLowerCase();
-            const items = document.querySelectorAll('.contact-item');
-            
-            items.forEach((item, index) => {
-                const contact = contacts[index];
-                const match = contact.name.toLowerCase().includes(term) || 
-                             contact.number.includes(term);
-                item.style.display = match ? 'flex' : 'none';
-            });
-        }
-
-        function clearChat() {
-            if (!currentChat) return;
-            if (confirm('Limpar todas as mensagens desta conversa?')) {
-                messages[currentChat.number] = [];
-                saveData();
-                renderMessages();
-            }
-        }
-
-        function showConnectionInfo() {
-            alert(`Seu número: ${currentUser.number}\n\nCompartilhe este número com amigos para eles te adicionarem!`);
-        }
-
-        function logout() {
-            if (confirm('Sair e apagar todos os dados?')) {
-                localStorage.removeItem('whatsapp_real_user');
-                localStorage.removeItem('whatsapp_real_contacts');
-                localStorage.removeItem('whatsapp_real_messages');
-                location.reload();
-            }
-        }
-
-        // Notificações
-        function showNotification(text, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = text;
-            notif.className = 'notification show' + (isError ? ' error' : '');
-            setTimeout(() => notif.classList.remove('show'), 4000);
-        }
-
-        function showConnectionStatus(text, connected) {
-            const status = document.getElementById('connectionStatus');
-            status.textContent = text;
-            status.className = 'connection-status show' + (connected ? ' connected' : '');
-        }
-
-        function hideConnectionStatus() {
-            document.getElementById('connectionStatus').classList.remove('show');
-        }
-
-        // Storage
-        function saveData() {
-            localStorage.setItem('whatsapp_real_contacts', JSON.stringify(contacts));
-            localStorage.setItem('whatsapp_real_messages', JSON.stringify(messages));
-        }
-
-        function loadData() {
-            const savedContacts = localStorage.getItem('whatsapp_real_contacts');
-            const savedMessages = localStorage.getItem('whatsapp_real_messages');
-            
-            if (savedContacts) contacts = JSON.parse(savedContacts);
-            if (savedMessages) messages = JSON.parse(savedMessages);
-            
-            renderContacts();
-        }
-
-        // Init
-        window.onload = function() {
-            const saved = localStorage.getItem('whatsapp_real_user');
-            if (saved) {
-                currentUser = JSON.parse(saved);
-                document.getElementById('userName').value = currentUser.name;
-                document.getElementById('generatedNumber').textContent = currentUser.number;
+            const joinRoom = () => {
+                if (!username.trim()) {
+                    setError('Digite seu nome!');
+                    return;
+                }
+                if (!inputRoomCode.trim()) {
+                    setError('Digite o código da sala!');
+                    return;
+                }
                 
-                const baseUrl = window.location.href.split('?')[0];
-                const inviteLink = `${baseUrl}?number=${encodeURIComponent(currentUser.number)}&name=${encodeURIComponent(currentUser.name)}`;
-                document.getElementById('shareLink').textContent = inviteLink;
-                
-                document.getElementById('step1').style.display = 'none';
-                document.getElementById('step2').style.display = 'block';
-            }
-        };
+                const code = inputRoomCode.toUpperCase();
+                if (!db.current.rooms[code]) {
+                    setError('Sala não encontrada!');
+                    return;
+                }
 
-        // Responsivo
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 899) {
-                document.getElementById('sidebar').classList.remove('hidden');
-                document.getElementById('chatContainer').classList.remove('active');
+                if (!db.current.rooms[code].users.includes(username)) {
+                    db.current.rooms[code].users.push(username);
+                    saveToLocalStorage();
+                }
+
+                setRoomCode(code);
+                setMessages(db.current.rooms[code].messages || []);
+                setScreen('chat');
+                setError('');
+            };
+
+            const sendMessage = () => {
+                if (!message.trim()) return;
+
+                const newMessage = {
+                    id: Date.now(),
+                    user: username,
+                    text: message,
+                    timestamp: new Date().toISOString()
+                };
+
+                db.current.rooms[roomCode].messages.push(newMessage);
+                saveToLocalStorage();
+                setMessages([...db.current.rooms[roomCode].messages]);
+                setMessage('');
+            };
+
+            const copyRoomCode = () => {
+                navigator.clipboard.writeText(roomCode);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            };
+
+            const leaveRoom = () => {
+                setScreen('home');
+                setRoomCode('');
+                setMessages([]);
+                setUsername('');
+                setInputRoomCode('');
+            };
+
+            useEffect(() => {
+                if (screen === 'chat' && roomCode) {
+                    const interval = setInterval(() => {
+                        const storedRooms = JSON.parse(localStorage.getItem('chatRooms') || '{}');
+                        if (storedRooms[roomCode]) {
+                            setMessages(storedRooms[roomCode].messages || []);
+                        }
+                    }, 1000);
+                    return () => clearInterval(interval);
+                }
+            }, [screen, roomCode]);
+
+            useEffect(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+
+            if (screen === 'home') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
+                            <div className="text-center mb-8">
+                                <div className="w-16 h-16 mx-auto text-purple-600 mb-4 flex items-center justify-center">
+                                    <MessageCircle />
+                                </div>
+                                <h1 className="text-3xl font-bold text-gray-800 mb-2">Chat Manos</h1>
+                                <p className="text-gray-600">Converse com seus amigos em tempo real</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <input
+                                    type="text"
+                                    placeholder="Seu nome"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none"
+                                />
+
+                                {error && (
+                                    <div className="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm">
+                                        {error}
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => setScreen('create')}
+                                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all"
+                                >
+                                    Criar Nova Sala
+                                </button>
+
+                                <button
+                                    onClick={() => setScreen('join')}
+                                    className="w-full bg-white border-2 border-purple-600 text-purple-600 py-4 rounded-xl font-semibold hover:bg-purple-50 transition-all"
+                                >
+                                    Entrar em uma Sala
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
             }
-        });
+
+            if (screen === 'create') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Criar Sala</h2>
+                            
+                            <div className="mb-6">
+                                <label className="block text-gray-700 mb-2 font-semibold">Seu nome:</label>
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none"
+                                    placeholder="Digite seu nome"
+                                />
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm mb-4">
+                                    {error}
+                                </div>
+                            )}
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={createRoom}
+                                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all"
+                                >
+                                    Criar Sala
+                                </button>
+
+                                <button
+                                    onClick={() => setScreen('home')}
+                                    className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-semibold hover:bg-gray-300 transition-all"
+                                >
+                                    Voltar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (screen === 'join') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Entrar na Sala</h2>
+                            
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="block text-gray-700 mb-2 font-semibold">Seu nome:</label>
+                                    <input
+                                        type="text"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none"
+                                        placeholder="Digite seu nome"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-gray-700 mb-2 font-semibold">Código da sala:</label>
+                                    <input
+                                        type="text"
+                                        value={inputRoomCode}
+                                        onChange={(e) => setInputRoomCode(e.target.value.toUpperCase())}
+                                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none uppercase"
+                                        placeholder="Ex: ABC123"
+                                        maxLength="6"
+                                    />
+                                </div>
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm mb-4">
+                                    {error}
+                                </div>
+                            )}
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={joinRoom}
+                                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all"
+                                >
+                                    Entrar
+                                </button>
+
+                                <button
+                                    onClick={() => setScreen('home')}
+                                    className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-semibold hover:bg-gray-300 transition-all"
+                                >
+                                    Voltar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl h-[600px] flex flex-col overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <MessageCircle />
+                                <div>
+                                    <h2 className="font-bold">Sala: {roomCode}</h2>
+                                    <p className="text-sm opacity-90">@{username}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={copyRoomCode}
+                                    className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg flex items-center gap-2 transition-all"
+                                >
+                                    {copied ? <Check /> : <Copy />}
+                                    <span className="text-sm">{copied ? 'Copiado!' : 'Copiar código'}</span>
+                                </button>
+                                
+                                <button
+                                    onClick={leaveRoom}
+                                    className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-all"
+                                >
+                                    <LogOut />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                            {messages.length === 0 ? (
+                                <div className="text-center text-gray-500 mt-20">
+                                    <div className="w-12 h-12 mx-auto mb-3 opacity-50 flex items-center justify-center">
+                                        <Users />
+                                    </div>
+                                    <p>Nenhuma mensagem ainda.</p>
+                                    <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
+                                </div>
+                            ) : (
+                                messages.map((msg) => (
+                                    <div
+                                        key={msg.id}
+                                        className={`flex ${msg.user === username ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        <div
+                                            className={`max-w-xs px-4 py-2 rounded-2xl ${
+                                                msg.user === username
+                                                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                                                    : 'bg-white text-gray-800 shadow'
+                                            }`}
+                                        >
+                                            {msg.user !== username && (
+                                                <p className="text-xs font-semibold mb-1 opacity-70">{msg.user}</p>
+                                            )}
+                                            <p className="break-words">{msg.text}</p>
+                                            <p className={`text-xs mt-1 ${msg.user === username ? 'opacity-70' : 'opacity-50'}`}>
+                                                {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { 
+                                                    hour: '2-digit', 
+                                                    minute: '2-digit' 
+                                                })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        <div className="p-4 bg-white border-t">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                                    placeholder="Digite sua mensagem..."
+                                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none"
+                                />
+                                <button
+                                    onClick={sendMessage}
+                                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all"
+                                >
+                                    <Send />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<ChatApp />, document.getElementById('root'));
     </script>
 </body>
 </html>
